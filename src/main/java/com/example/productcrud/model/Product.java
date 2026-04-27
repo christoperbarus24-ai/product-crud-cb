@@ -16,8 +16,6 @@ public class Product {
     @Column(nullable = false, length = 200)
     private String name;
 
-    // Relasi ManyToOne ke entity Category
-    // nullable = true agar produk lama yang belum punya category tidak error
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = true)
     private Category category;
@@ -33,11 +31,14 @@ public class Product {
     @DateTimeFormat(pattern = "yyyy-MM-dd")
     private LocalDate createdAt;
 
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
     public Product() {
     }
 
     public Product(Long id, String name, Category category, long price, int stock,
-                   String description, boolean active, LocalDate createdAt) {
+                   String description, boolean active, LocalDate createdAt, Long userId) {
         this.id = id;
         this.name = name;
         this.category = category;
@@ -46,6 +47,7 @@ public class Product {
         this.description = description;
         this.active = active;
         this.createdAt = createdAt;
+        this.userId = userId;
     }
 
     public Long getId() {
@@ -110,5 +112,13 @@ public class Product {
 
     public void setCreatedAt(LocalDate createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 }

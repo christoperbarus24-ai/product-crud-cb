@@ -17,7 +17,6 @@ public class Category {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    // Foreign key ke tabel users — category bersifat per-user
     @Column(name = "user_id", nullable = false)
     private Long userId;
 

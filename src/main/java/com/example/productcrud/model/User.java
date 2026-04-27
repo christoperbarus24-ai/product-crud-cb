@@ -15,7 +15,6 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    // Field profil tambahan (semuanya opsional)
     private String fullName;
 
     private String email;

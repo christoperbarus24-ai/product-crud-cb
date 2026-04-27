@@ -16,31 +16,23 @@
     </div>
 
     <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <!-- Card Header -->
         <div class="px-8 py-5 border-b border-slate-100 bg-slate-50">
-            <h1 class="text-xl font-bold text-slate-800" th:text="${product.id != null} ? 'Edit Produk' : 'Tambah Produk Baru'">
+            <h1 class="text-xl font-bold text-slate-800"
+                th:text="${product.id != null} ? 'Edit Produk' : 'Tambah Produk Baru'">
                 Form Produk
             </h1>
-            <p class="text-sm text-slate-400 mt-0.5" th:text="${product.id != null} ? 'Perbarui informasi produk yang sudah ada' : 'Isi informasi untuk menambah produk baru'">
+            <p class="text-sm text-slate-400 mt-0.5"
+               th:text="${product.id != null} ? 'Perbarui informasi produk yang sudah ada' : 'Isi informasi untuk menambah produk baru'">
                 Kelola produk Anda
             </p>
         </div>
 
-        <!-- Form Body -->
         <div class="p-8">
-            <!--
-                FIX: Gunakan action yang berbeda untuk tambah vs edit.
-                - Tambah baru  : POST /products/save
-                - Edit/update  : POST /products/{id}/update
-                Ini memperbaiki bug form edit yang sebelumnya selalu pakai /products/save
-            -->
             <form th:action="${product.id != null} ? @{/products/{id}/update(id=${product.id})} : @{/products/save}"
                   th:object="${product}" method="post" class="space-y-6">
 
-                <!-- Hidden ID -->
                 <input type="hidden" th:field="*{id}">
 
-                <!-- Grid: Nama & Kategori -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <!-- Nama Produk -->
                     <div class="sm:col-span-2">
@@ -53,9 +45,15 @@
                     </div>
 
                     <!-- Kategori -->
+                    <!--
+                        PERBAIKAN BUG #1:
+                        Ganti name="categoryId" menjadi name="category.id"
+                        Agar Spring MVC binding otomatis ke product.category.id
+                        sehingga ProductController bisa membaca product.getCategory().getId()
+                    -->
                     <div class="sm:col-span-2">
-                        <label for="categoryId" class="block text-sm font-medium text-slate-700 mb-1.5">Kategori</label>
-                        <select id="categoryId" name="categoryId"
+                        <label for="category.id" class="block text-sm font-medium text-slate-700 mb-1.5">Kategori</label>
+                        <select id="categorySelect" name="category.id"
                                 class="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all bg-white">
                             <option value="">— Pilih Kategori —</option>
                             <option th:each="cat : ${categories}"
@@ -74,7 +72,6 @@
 
                 <!-- Harga & Stok -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <!-- Harga -->
                     <div>
                         <label for="priceDisplay" class="block text-sm font-medium text-slate-700 mb-1.5">
                             Harga <span class="text-red-500">*</span>
@@ -88,7 +85,6 @@
                         </div>
                     </div>
 
-                    <!-- Stok -->
                     <div>
                         <label for="stock" class="block text-sm font-medium text-slate-700 mb-1.5">
                             Stok <span class="text-red-500">*</span>
@@ -109,7 +105,6 @@
 
                 <!-- Status & Tanggal -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-end">
-                    <!-- Produk Aktif -->
                     <div class="flex items-center gap-3 p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="active" th:field="*{active}" class="sr-only peer">
@@ -121,7 +116,6 @@
                         </label>
                     </div>
 
-                    <!-- Tanggal Dibuat -->
                     <div>
                         <label for="createdAt" class="block text-sm font-medium text-slate-700 mb-1.5">
                             Tanggal Dibuat <span class="text-red-500">*</span>
@@ -132,7 +126,7 @@
                     </div>
                 </div>
 
-                <!-- Action Buttons -->
+                <!-- Tombol Aksi -->
                 <div class="flex flex-col sm:flex-row gap-3 pt-2 border-t border-slate-100">
                     <button type="submit"
                             class="flex-1 px-6 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors">
@@ -152,6 +146,7 @@
 <footer th:replace="~{fragments/layout :: footer}"></footer>
 
 <script>
+    // Format harga dengan titik ribuan (Rupiah)
     const priceHidden = document.getElementById('price');
     const priceDisplay = document.getElementById('priceDisplay');
 
@@ -159,11 +154,12 @@
         return Number(value).toLocaleString('id-ID');
     }
 
-    // Init: format existing value
+    // Isi nilai awal saat edit (ambil dari hidden field)
     if (priceHidden.value && priceHidden.value !== '0') {
         priceDisplay.value = formatThousand(priceHidden.value);
     }
 
+    // Saat user mengetik di field tampilan, update hidden field
     priceDisplay.addEventListener('input', function () {
         const oldValue = this.value;
         const cursorPos = this.selectionStart;

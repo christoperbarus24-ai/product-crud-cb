@@ -2,10 +2,8 @@ package com.example.productcrud.controller;
 
 import com.example.productcrud.model.Category;
 import com.example.productcrud.model.Product;
-import com.example.productcrud.service.CategoryService;
 import com.example.productcrud.service.ProductService;
 import java.time.LocalDate;
-import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -17,11 +15,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class ProductController {
 
     private final ProductService productService;
-    private final CategoryService categoryService;
 
-    public ProductController(ProductService productService, CategoryService categoryService) {
+    public ProductController(ProductService productService) {
         this.productService = productService;
-        this.categoryService = categoryService;
     }
 
     @GetMapping("/")
@@ -31,40 +27,35 @@ public class ProductController {
 
     @GetMapping("/products")
     public String listProducts(
-            @RequestParam(value = "keyword", required = false, defaultValue = "") String keyword,
-            @RequestParam(value = "categoryId", required = false) Long categoryId,
-            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
             Authentication authentication,
             Model model) {
 
-        int pageIndex = Math.max(0, page - 1);
-        Page<Product> productPage = productService.searchAndFilter(keyword, categoryId, pageIndex);
-        List<Category> userCategories = productService.findCategoriesByUsername(authentication.getName());
+        String username = authentication.getName();
+        Page<Product> productPage = productService.searchAndFilter(username, keyword, categoryId, page - 1);
 
         model.addAttribute("products", productPage.getContent());
-        model.addAttribute("currentPage", productPage.getNumber() + 1);
+        model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", productPage.getTotalPages());
         model.addAttribute("totalItems", productPage.getTotalElements());
         model.addAttribute("pageSize", productPage.getSize());
+        model.addAttribute("hasPrevious", productPage.hasPrevious());
+        model.addAttribute("hasNext", productPage.hasNext());
+
         model.addAttribute("keyword", keyword);
         model.addAttribute("selectedCategoryId", categoryId);
-        model.addAttribute("categories", userCategories);
+
+        model.addAttribute("categories", productService.findCategoriesByUsername(username));
 
         return "product/list";
     }
 
-    @GetMapping("/products/new")
-    public String showCreateForm(Authentication authentication, Model model) {
-        Product product = new Product();
-        product.setCreatedAt(LocalDate.now());
-        model.addAttribute("product", product);
-        model.addAttribute("categories", productService.findCategoriesByUsername(authentication.getName()));
-        return "product/form";
-    }
-
     @GetMapping("/products/{id}")
-    public String detailProduct(@PathVariable Long id, Model model) {
-        return productService.findById(id)
+    public String detailProduct(@PathVariable Long id, Authentication authentication, Model model) {
+        String username = authentication.getName();
+        return productService.findByIdAndUsername(id, username)
                 .map(product -> {
                     model.addAttribute("product", product);
                     return "product/detail";
@@ -72,63 +63,78 @@ public class ProductController {
                 .orElse("redirect:/products");
     }
 
-    // POST /products/save -> hanya untuk produk BARU (id == null)
-    @PostMapping("/products/save")
-    public String saveProduct(
-            @ModelAttribute Product product,
-            @RequestParam(value = "categoryId", required = false) Long categoryId,
-            Authentication authentication,
-            RedirectAttributes redirectAttributes) {
+    @GetMapping("/products/new")
+    public String showCreateForm(Authentication authentication, Model model) {
+        String username = authentication.getName();
+        Product product = new Product();
+        product.setCreatedAt(LocalDate.now());
+        product.setActive(true);
+        model.addAttribute("product", product);
+        model.addAttribute("categories", productService.findCategoriesByUsername(username));
+        return "product/form";
+    }
 
-        if (categoryId != null) {
-            categoryService.findByIdAndUsername(categoryId, authentication.getName())
-                    .ifPresent(product::setCategory);
+    @PostMapping("/products/save")
+    public String saveProduct(@ModelAttribute Product product, Authentication authentication, RedirectAttributes redirectAttributes) {
+        String username = authentication.getName();
+
+        if (product.getCategory() != null && product.getCategory().getId() != null) {
+            Category category = productService.findCategoryByIdAndUsername(product.getCategory().getId(), username).orElse(null);
+            product.setCategory(category);
         } else {
             product.setCategory(null);
         }
 
-        productService.save(product);
+        productService.save(product, username);
         redirectAttributes.addFlashAttribute("successMessage", "Produk berhasil disimpan!");
         return "redirect:/products";
     }
 
     @GetMapping("/products/{id}/edit")
     public String showEditForm(@PathVariable Long id, Authentication authentication, Model model) {
-        return productService.findById(id)
+        String username = authentication.getName();
+        return productService.findByIdAndUsername(id, username)
                 .map(product -> {
                     model.addAttribute("product", product);
-                    model.addAttribute("categories", productService.findCategoriesByUsername(authentication.getName()));
+                    model.addAttribute("categories", productService.findCategoriesByUsername(username));
                     return "product/form";
                 })
                 .orElse("redirect:/products");
     }
 
-    // FIX: Tambah endpoint POST untuk update produk yang sudah ada
     @PostMapping("/products/{id}/update")
-    public String updateProduct(
-            @PathVariable Long id,
-            @ModelAttribute Product product,
-            @RequestParam(value = "categoryId", required = false) Long categoryId,
-            Authentication authentication,
-            RedirectAttributes redirectAttributes) {
+    public String updateProduct(@PathVariable Long id, @ModelAttribute Product product, Authentication authentication, RedirectAttributes redirectAttributes) {
+        String username = authentication.getName();
 
-        product.setId(id);
-
-        if (categoryId != null) {
-            categoryService.findByIdAndUsername(categoryId, authentication.getName())
-                    .ifPresent(product::setCategory);
-        } else {
-            product.setCategory(null);
+        Product existing = productService.findByIdAndUsername(id, username).orElse(null);
+        if (existing == null) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Produk tidak ditemukan");
+            return "redirect:/products";
         }
 
-        productService.save(product);
+        if (product.getCategory() != null && product.getCategory().getId() != null) {
+            Category category = productService.findCategoryByIdAndUsername(product.getCategory().getId(), username).orElse(null);
+            existing.setCategory(category);
+        } else {
+            existing.setCategory(null);
+        }
+
+        existing.setName(product.getName());
+        existing.setPrice(product.getPrice());
+        existing.setStock(product.getStock());
+        existing.setDescription(product.getDescription());
+        existing.setActive(product.isActive());
+        existing.setCreatedAt(product.getCreatedAt());
+
+        productService.save(existing, username);
         redirectAttributes.addFlashAttribute("successMessage", "Produk berhasil diperbarui!");
         return "redirect:/products";
     }
 
     @PostMapping("/products/{id}/delete")
-    public String deleteProduct(@PathVariable Long id, RedirectAttributes redirectAttributes) {
-        productService.deleteById(id);
+    public String deleteProduct(@PathVariable Long id, Authentication authentication, RedirectAttributes redirectAttributes) {
+        String username = authentication.getName();
+        productService.deleteByIdAndUsername(id, username);
         redirectAttributes.addFlashAttribute("successMessage", "Produk berhasil dihapus!");
         return "redirect:/products";
     }

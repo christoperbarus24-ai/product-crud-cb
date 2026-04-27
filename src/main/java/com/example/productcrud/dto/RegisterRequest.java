@@ -2,10 +2,9 @@ package com.example.productcrud.dto;
 
 public class RegisterRequest {
     private String username;
-    public String password;
+    private String password;
     private String confirmPassword;
 
-    // Field opsional untuk profil awal
     private String fullName;
     private String email;
 

@@ -22,7 +22,6 @@ public class AuthPageFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         if (AUTH_PAGES.contains(request.getRequestURI())) {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            // FIX: Cek apakah authentication bukan null, bukan anonymous, dan sudah terautentikasi
             if (authentication != null
                     && authentication.isAuthenticated()
                     && !(authentication instanceof AnonymousAuthenticationToken)) {
